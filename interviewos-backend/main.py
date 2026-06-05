@@ -60,9 +60,24 @@ app = FastAPI(title=settings.app_name, version="1.0.0", lifespan=lifespan)
 
 LOCAL_DEV_ORIGIN_REGEX = r"^https?://(localhost|127\.0\.0\.1):\d+$"
 
+
+def configured_frontend_origins() -> list[str]:
+    configured = [settings.frontend_url, *settings.frontend_urls.split(",")]
+    origins: list[str] = []
+    for origin in configured:
+        normalized = origin.strip().rstrip("/")
+        if normalized and normalized not in origins:
+            origins.append(normalized)
+    return origins
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_url, "http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=[
+        *configured_frontend_origins(),
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
     allow_origin_regex=LOCAL_DEV_ORIGIN_REGEX,
     allow_credentials=True,
     allow_private_network=True,

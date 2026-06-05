@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     app_env: str = "development"
     secret_key: str = "development_secret_key_change_me_32_chars"
     frontend_url: str = "http://localhost:3000"
+    frontend_urls: str = ""
     allow_dev_auth_fallback: bool = True
 
     database_url: str | None = None
