@@ -1,5 +1,7 @@
 import asyncio
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+UTC = timezone.utc
 from copy import deepcopy
 import logging
 import time

@@ -3,7 +3,9 @@ from __future__ import annotations
 import json
 import re
 from ast import literal_eval
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+UTC = timezone.utc
 from typing import Any
 
 from agents.tools.autonomous import execute_autonomous_tool_selection
