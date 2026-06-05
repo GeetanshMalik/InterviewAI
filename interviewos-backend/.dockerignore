@@ -1,0 +1,27 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Virtual environments
+venv/
+.env
+.env.*
+
+# Git and editor files
+.git/
+.gitignore
+.vscode/
+.idea/
+
+# Runtime and local data
+uploads/
+chroma_db/
+data/
+**/node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db

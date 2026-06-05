@@ -1,0 +1,7 @@
+build:
+  docker:
+    web: Dockerfile.heroku
+    worker: Dockerfile.heroku
+run:
+  web: uvicorn main:app --host 0.0.0.0 --port $PORT
+  worker: python -m workers.workflow_worker

@@ -1,0 +1,54 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+.pytest_cache/
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+.vscode/
+*.log
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local env files
+.env*.local
+.env
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# backend local runtime
+interviewos-backend/venv/
+interviewos-backend/__pycache__/
+interviewos-backend/**/__pycache__/
+interviewos-backend/.pytest_cache/
+interviewos-backend/tests/
+interviewos-backend/*.log
+interviewos-backend/logs/
+interviewos-backend/uploads/
+interviewos-backend/chroma_db/
+interviewos-backend/data/
+
+# local archives and non-runtime cleanup output
+extra/
