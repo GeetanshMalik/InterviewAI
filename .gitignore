@@ -49,6 +49,7 @@ interviewos-backend/logs/
 interviewos-backend/uploads/
 interviewos-backend/chroma_db/
 interviewos-backend/data/
+chroma_db/
 
 # local archives and non-runtime cleanup output
 extra/

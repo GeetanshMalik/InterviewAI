@@ -12,6 +12,7 @@ from typing import Any
 from config import settings
 from services.repositories.manager import persistence_manager
 from services.repository_service import repository_service
+from services.runtime_health import runtime_health_snapshot
 from services.store import iso_now, new_id, store, utc_now
 from services.workflow import append_workflow_event, build_workflow_state, ensure_workflow_job, update_workflow_job
 from services.workflow_generation import InterviewAssetGenerator, WorkflowJobCancelled, run_interview_generation_with_retries
@@ -489,6 +490,13 @@ async def workflow_queue_health() -> dict[str, Any]:
         "status": "ok" if healthy else "degraded",
         "backend": backend,
         "asyncGeneration": bool(settings.workflow_async_generation),
+        "orchestration": {
+            "mode": "autonomous-multiagent",
+            "generationProfile": settings.workflow_generation_profile,
+            "queueBackend": backend,
+            "durableWorkerExpected": backend == "redis" and bool(settings.workflow_async_generation),
+        },
+        "runtime": runtime_health_snapshot(),
         "redis": redis_status,
         "worker": heartbeat,
         "persistence": {

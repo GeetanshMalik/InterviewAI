@@ -31,6 +31,7 @@ from routers import (
 from services.chroma import init_chroma
 from services.file_service import cleanup_expired_resume_uploads, resume_upload_cleanup_loop
 from services.repositories.manager import persistence_manager
+from services.runtime_health import provider_health_snapshot, runtime_health_snapshot
 from services.store import store
 from services.workflow_queue import workflow_queue_health
 
@@ -133,9 +134,13 @@ async def health():
     return {
         "status": "ok",
         "version": "1.0.0",
+        "environment": settings.app_env,
         "db": "configured" if settings.database_url else "development-store",
         "persistence": "postgres" if persistence_manager.enabled else "development-store",
         "chroma": "configured",
+        "runtime": runtime_health_snapshot(),
+        "providers": provider_health_snapshot(),
+        "frontendOrigins": configured_frontend_origins(),
     }
 
 
