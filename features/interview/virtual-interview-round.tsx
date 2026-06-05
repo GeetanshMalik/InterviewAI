@@ -39,6 +39,7 @@ import { clearAutosavedValue, readAutosavedValue, writeAutosavedValue } from "@/
 import { cleanGeneratedText } from "@/lib/generated-text";
 import { cn } from "@/lib/utils";
 import { apiService } from "@/services/api-service";
+import { retryRequest } from "@/services/retry-request";
 import { useInterviewStore } from "@/stores/interview-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import type { AnswerRoundResult, InterviewQuestion, ProctorEvent, SpeechMetrics } from "@/types";
@@ -1162,21 +1163,32 @@ export function VirtualInterviewRound({
       setMetricsByQuestion((current) => ({ ...current, [question.id]: metrics }));
 
       try {
-        const response = await apiService.request<AnswerRoundResult & { runtime?: RoundRuntimeResponse }>(endpoint, {
-          method: "POST",
-          body: {
-            interview_id: interviewId,
-            question_id: question.id,
-            answer,
-            transcript_confidence: answerMode === "code" ? null : metrics.averageConfidence,
-            answer_mode: answerMode,
-            time_taken_seconds: timeTakenSeconds,
-            timer_expired: Boolean(options.timerExpired),
-            speech_metrics: metrics,
-            proctor_events: questionEvents,
-            repeat_count: repeatCountsRef.current[question.id] || 0,
-            paraphrase_count: paraphraseCountsRef.current[question.id] || 0,
-            answer_source: options.answerSource,
+        const response = await retryRequest({
+          request: () =>
+            apiService.request<AnswerRoundResult & { runtime?: RoundRuntimeResponse }>(endpoint, {
+              method: "POST",
+              timeoutMs: 45_000,
+              body: {
+                interview_id: interviewId,
+                question_id: question.id,
+                answer,
+                transcript_confidence: answerMode === "code" ? null : metrics.averageConfidence,
+                answer_mode: answerMode,
+                time_taken_seconds: timeTakenSeconds,
+                timer_expired: Boolean(options.timerExpired),
+                speech_metrics: metrics,
+                proctor_events: questionEvents,
+                repeat_count: repeatCountsRef.current[question.id] || 0,
+                paraphrase_count: paraphraseCountsRef.current[question.id] || 0,
+                answer_source: options.answerSource,
+              },
+            }),
+          onRetry: (_error, attempt) => {
+            addExecutionLog({
+              type: "warning",
+              agent: agentName,
+              message: `Backend scoring was slow. Retrying ${round} answer (${attempt + 1}/3)...`,
+            });
           },
         });
 

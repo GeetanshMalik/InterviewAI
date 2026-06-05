@@ -75,12 +75,17 @@ async def submit_code(payload: DSASubmissionRequest, current_user: dict = Depend
         raise HTTPException(status_code=404, detail="Interview not found")
     if not problem:
         raise HTTPException(status_code=404, detail="Problem not found")
-    already_submitted = any(
-        submission.get("problemId") == payload.problem_id
-        for submission in store.dsa_submissions.get(payload.interview_id, [])
+    existing_submission = next(
+        (
+            submission
+            for submission in store.dsa_submissions.get(payload.interview_id, [])
+            if submission.get("problemId") == payload.problem_id
+        ),
+        None,
     )
-    if already_submitted:
-        raise HTTPException(status_code=409, detail="This problem has already been submitted.")
+    if existing_submission:
+        cached_submission = {**existing_submission, "dedupedEvaluation": True}
+        return public_evaluation_payload(cached_submission)
 
     submission_decision = tool_decision(
         "DSA Agent",

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { apiService } from "@/services/api-service";
+import { retryRequest } from "@/services/retry-request";
 import { useWorkflowActions } from "@/hooks/use-workflow-state";
 import { useInterviewStore } from "@/stores/interview-store";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -281,12 +282,23 @@ export function AptitudeTab() {
           ];
         })
       );
-      const response = await apiService.request<AptitudeRoundResult>("/api/aptitude/submit", {
-        method: "POST",
-        body: {
-          interview_id: interviewId,
-          answers: valueAwareAnswers,
-          time_taken_seconds: Math.min(APTITUDE_ROUND_LIMIT_SECONDS, Math.round((Date.now() - startedAt) / 1000)),
+      const response = await retryRequest({
+        request: () =>
+          apiService.request<AptitudeRoundResult>("/api/aptitude/submit", {
+            method: "POST",
+            timeoutMs: 35_000,
+            body: {
+              interview_id: interviewId,
+              answers: valueAwareAnswers,
+              time_taken_seconds: Math.min(APTITUDE_ROUND_LIMIT_SECONDS, Math.round((Date.now() - startedAt) / 1000)),
+            },
+          }),
+        onRetry: (_error, attempt) => {
+          addExecutionLog({
+            type: "warning",
+            agent: "Aptitude Agent",
+            message: `Aptitude scoring is retrying after a transient backend delay (${attempt + 1}/3).`,
+          });
         },
       });
 

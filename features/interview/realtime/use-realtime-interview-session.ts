@@ -652,7 +652,7 @@ export function useRealtimeInterviewSession({
         }
       }
 
-      if (!callActiveRef.current || manualTranscriptionCloseRef.current || !interviewId || !canCaptureRef.current) return;
+      if (!callActiveRef.current || manualTranscriptionCloseRef.current || !interviewId || !micEnabledRef.current) return;
       if (transcriptionReconnectTimerRef.current !== null) return;
 
       const nextAttempt = deepgramReconnectAttemptsRef.current + 1;
@@ -768,7 +768,7 @@ export function useRealtimeInterviewSession({
         stopMediaRecorder();
         if (
           callActiveRef.current &&
-          canCaptureRef.current &&
+          micEnabledRef.current &&
           !manualTranscriptionCloseRef.current &&
           transcriptionModeRef.current !== "browser-fallback"
         ) {
@@ -776,7 +776,7 @@ export function useRealtimeInterviewSession({
         }
       };
       socket.onerror = () => {
-        if (canCaptureRef.current) {
+        if (micEnabledRef.current) {
           scheduleDeepgramReconnect("websocket_error");
         }
         emitMediaEvent("transcription_error", { source: "websocket" });
@@ -827,14 +827,17 @@ export function useRealtimeInterviewSession({
     if (!canCapture) {
       stopMediaRecorder();
       stopBrowserRecognition(true);
-      closeTranscriptionSocket();
       setIsListening(false);
       if (botSpeaking) {
         setSpeechStatus("Bot speaking");
       } else if (!micEnabled) {
         setSpeechStatus("Mic muted");
+        closeTranscriptionSocket();
       } else if (captureMode === "idle") {
         setSpeechStatus("Mic is idle");
+      }
+      if (micEnabled && (transcriptionMode === "deepgram" || transcriptionMode === "unavailable") && !transcriptSocketRef.current) {
+        connectTranscription();
       }
       return;
     }

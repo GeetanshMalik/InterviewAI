@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { apiService } from "@/services/api-service";
+import { retryRequest } from "@/services/retry-request";
 import { useWorkflowActions } from "@/hooks/use-workflow-state";
 import { useInterviewStore } from "@/stores/interview-store";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -400,12 +401,23 @@ export function DSATab() {
     setIsRunning(true);
 
     try {
-      const response = await apiService.request<EvaluationResponse>("/api/dsa/run", {
-        method: "POST",
-        body: {
-          problem_id: selectedProblem.id,
-          code: currentCode,
-          language,
+      const response = await retryRequest({
+        request: () =>
+          apiService.request<EvaluationResponse>("/api/dsa/run", {
+            method: "POST",
+            timeoutMs: 30_000,
+            body: {
+              problem_id: selectedProblem.id,
+              code: currentCode,
+              language,
+            },
+          }),
+        onRetry: (_error, attempt) => {
+          addExecutionLog({
+            type: "warning",
+            agent: "DSA Runner",
+            message: `Backend was slow while running code. Retrying (${attempt + 1}/3)...`,
+          });
         },
       });
       const entry = addEvaluationEntry("run", response);
@@ -445,14 +457,25 @@ export function DSATab() {
     ) => {
       if (!interviewId) return null;
 
-      const response = await apiService.request<EvaluationResponse>("/api/dsa/submissions", {
-        method: "POST",
-        body: {
-          interview_id: interviewId,
-          problem_id: problem.id,
-          code,
-          language: submissionLanguage,
-          time_taken_seconds: elapsedRoundSeconds(),
+      const response = await retryRequest({
+        request: () =>
+          apiService.request<EvaluationResponse>("/api/dsa/submissions", {
+            method: "POST",
+            timeoutMs: 45_000,
+            body: {
+              interview_id: interviewId,
+              problem_id: problem.id,
+              code,
+              language: submissionLanguage,
+              time_taken_seconds: elapsedRoundSeconds(),
+            },
+          }),
+        onRetry: (_error, attempt) => {
+          addExecutionLog({
+            type: "warning",
+            agent: "DSA Evaluator",
+            message: `${cleanProblemText(problem.title)} evaluation is retrying after a transient backend delay (${attempt + 1}/3).`,
+          });
         },
       });
 
