@@ -52,7 +52,11 @@ RUN curl -fsSL -o /tmp/kotlin-compiler.zip \
 ENV DOTNET_CLI_TELEMETRY_OPTOUT=1 \
     DOTNET_NOLOGO=1 \
     PYTHONUNBUFFERED=1 \
-    PATH="/opt/kotlinc/bin:${PATH}"
+    VIRTUAL_ENV="/opt/venv" \
+    PATH="/opt/venv/bin:/opt/kotlinc/bin:${PATH}"
+
+RUN python -m venv "$VIRTUAL_ENV" \
+    && python -m pip install --no-cache-dir --upgrade pip setuptools wheel
 
 FROM runtime-base AS backend
 
