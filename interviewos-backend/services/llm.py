@@ -709,13 +709,21 @@ class LLMService:
                     yield LLMStreamChunk(event="start", content="", provider=provider, model=model)
                     chunks: list[str] = []
                     if hasattr(client, "astream"):
-                        async with asyncio.timeout(call_timeout):
-                            async for chunk in client.astream(lc_messages):
-                                content = self._content_text(getattr(chunk, "content", ""))
-                                if not content:
-                                    continue
-                                chunks.append(content)
-                                yield LLMStreamChunk(event="token", content=content, provider=provider, model=model)
+                        stream = client.astream(lc_messages).__aiter__()
+                        deadline = time.monotonic() + call_timeout
+                        while True:
+                            remaining = deadline - time.monotonic()
+                            if remaining <= 0:
+                                raise asyncio.TimeoutError()
+                            try:
+                                chunk = await asyncio.wait_for(stream.__anext__(), timeout=remaining)
+                            except StopAsyncIteration:
+                                break
+                            content = self._content_text(getattr(chunk, "content", ""))
+                            if not content:
+                                continue
+                            chunks.append(content)
+                            yield LLMStreamChunk(event="token", content=content, provider=provider, model=model)
                     else:
                         response = await asyncio.wait_for(client.ainvoke(lc_messages), timeout=call_timeout)
                         content = self._content_text(response.content)

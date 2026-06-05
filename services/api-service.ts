@@ -1,6 +1,11 @@
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://127.0.0.1:8000";
 const LOCAL_BACKEND_FALLBACK_URL = "http://127.0.0.1:8000";
+const PRODUCTION_BACKEND_FALLBACK_URL = "https://interviewos-backend-b71b2d354ad5.herokuapp.com";
+const CONFIGURED_API_BASE_URL = process.env.NEXT_PUBLIC_API_URL?.trim().replace(/\/$/, "");
+const API_BASE_URL =
+  CONFIGURED_API_BASE_URL ||
+  (process.env.NODE_ENV === "production"
+    ? PRODUCTION_BACKEND_FALLBACK_URL
+    : LOCAL_BACKEND_FALLBACK_URL);
 
 const TOKEN_KEY = "interviewos-access-token";
 const REFRESH_TOKEN_KEY = "interviewos-refresh-token";
@@ -157,6 +162,14 @@ class APIService {
     return `Backend request to ${endpoint} timed out after ${seconds}s. The server may be running, but this endpoint is taking too long.`;
   }
 
+  private unreachableMessage(primaryURL: string, fallbackURL?: string | null) {
+    const targets = fallbackURL ? `${primaryURL} or ${fallbackURL}` : primaryURL;
+    if (process.env.NODE_ENV === "production") {
+      return `Cannot reach backend at ${targets}. Check that the Heroku backend is awake and that Vercel was redeployed with NEXT_PUBLIC_API_URL set to the Heroku URL.`;
+    }
+    return `Cannot reach backend at ${targets}. Start the FastAPI server and try again.`;
+  }
+
   async request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
     const {
       body,
@@ -222,14 +235,10 @@ class APIService {
             if (this.isAbortError(fallbackError)) {
               throw new Error(this.timeoutMessage(endpoint, timeoutMs));
             }
-            throw new Error(
-              `Cannot reach backend at ${this.baseURL} or ${fallbackURL}. Start the FastAPI server and try again.`
-            );
+            throw new Error(this.unreachableMessage(this.baseURL, fallbackURL));
           }
         } else {
-          throw new Error(
-            `Cannot reach backend at ${this.baseURL}. Start the FastAPI server and try again.`
-          );
+          throw new Error(this.unreachableMessage(this.baseURL));
         }
       }
 
