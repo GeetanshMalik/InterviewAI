@@ -7,7 +7,7 @@ from typing import Any
 from config import settings
 
 
-MIN_SUPPORTED_PYTHON = (3, 10)
+MIN_SUPPORTED_PYTHON = (3, 12)
 
 
 def runtime_health_snapshot() -> dict[str, Any]:

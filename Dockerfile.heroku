@@ -18,13 +18,13 @@ RUN apt-get update \
         python3-pip \
         python3-venv \
         python-is-python3 \
-        openjdk-17-jdk \
+        openjdk-17-jdk-headless \
         golang-go \
         rustc \
         cargo \
-        ruby-full \
+        ruby \
         php-cli \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* /usr/share/doc /usr/share/man
 
 RUN python --version \
     && python -c "import sys; assert sys.version_info >= (3, 12), sys.version"
@@ -63,8 +63,9 @@ FROM runtime-base AS backend
 WORKDIR /app
 
 COPY interviewos-backend/requirements.txt .
+COPY interviewos-backend/requirements.heroku.txt .
 RUN python -m pip install --no-cache-dir --upgrade pip \
-    && python -m pip install --no-cache-dir -r requirements.txt
+    && python -m pip install --no-cache-dir -r requirements.heroku.txt
 
 COPY interviewos-backend/ .
 
