@@ -55,23 +55,7 @@ type DashboardOverview = {
   confidence_trend: any[];
   question_distribution: DistributionDatum[];
   weak_strong_subjects: { subjects: SubjectDatum[]; strong_subjects: SubjectDatum[]; weak_subjects: SubjectDatum[] };
-};
-
-const emptyDashboardOverview: DashboardOverview = {
-  stats: {
-    total_interviews: 0,
-    completed_interviews: 0,
-    scored_interviews: 0,
-    average_score: 0,
-    average_confidence: 0,
-    improvement_trend: 0,
-    interview_change_percent: null,
-    score_change_percent: null,
-  },
-  score_trend: [],
-  confidence_trend: [],
-  question_distribution: [],
-  weak_strong_subjects: { subjects: [], strong_subjects: [], weak_subjects: [] },
+  hydration?: { complete?: boolean; deferred?: boolean };
 };
 
 const confidenceLabel = (score: number, scoredInterviews: number) => {
@@ -88,6 +72,21 @@ const trendFor = (change?: number | null) => {
 
 const isDashboardTimeout = (error: unknown) =>
   error instanceof Error && error.message.toLowerCase().includes("timed out");
+
+const dashboardRetryDelaysMs = [0, 1200, 2500, 4000];
+
+const sleep = (delayMs: number) => new Promise((resolve) => setTimeout(resolve, delayMs));
+
+const hasDashboardData = (overview: DashboardOverview) =>
+  (overview.stats?.total_interviews ?? 0) > 0 ||
+  (overview.stats?.scored_interviews ?? 0) > 0 ||
+  overview.score_trend.length > 0 ||
+  overview.confidence_trend.length > 0 ||
+  overview.question_distribution.length > 0 ||
+  overview.weak_strong_subjects.subjects.length > 0;
+
+const shouldRetryOverview = (overview: DashboardOverview) =>
+  overview.hydration?.complete === false && !hasDashboardData(overview);
 
 const timeGreeting = () => {
   const hour = new Date().getHours();
@@ -109,27 +108,52 @@ export default function DashboardPage() {
     setIsDashboardLoading(true);
     setDashboardError("");
 
-    apiService
-      .request<DashboardOverview>("/api/dashboard/overview", {
-        forceRefresh: true,
-        timeoutMs: 15_000,
-      })
-      .then((overview) => {
-        if (!mounted) return;
-        setOverview(overview);
-      })
-      .catch((error) => {
-        if (!mounted) return;
-        if (isDashboardTimeout(error)) {
-          setOverview(emptyDashboardOverview);
-          return;
+    const loadDashboard = async () => {
+      let lastError: unknown = null;
+      for (let attempt = 0; attempt < dashboardRetryDelaysMs.length; attempt += 1) {
+        const delayMs = dashboardRetryDelaysMs[attempt];
+        if (delayMs > 0) {
+          await sleep(delayMs);
         }
-        setOverview(null);
-        setDashboardError(error instanceof Error ? error.message : "Unable to load dashboard data.");
-      })
-      .finally(() => {
-        if (mounted) setIsDashboardLoading(false);
-      });
+        if (!mounted) return;
+
+        try {
+          const nextOverview = await apiService.request<DashboardOverview>("/api/dashboard/overview", {
+            forceRefresh: true,
+            timeoutMs: 25_000,
+          });
+          if (!mounted) return;
+          if (shouldRetryOverview(nextOverview) && attempt < dashboardRetryDelaysMs.length - 1) {
+            continue;
+          }
+          setOverview(nextOverview);
+          setDashboardError(
+            nextOverview.hydration?.complete === false
+              ? "Dashboard data is still syncing from the backend. Refresh is not required."
+              : ""
+          );
+          return;
+        } catch (error) {
+          lastError = error;
+          if (attempt < dashboardRetryDelaysMs.length - 1) {
+            continue;
+          }
+        }
+      }
+
+      if (!mounted) return;
+      setDashboardError(
+        isDashboardTimeout(lastError)
+          ? "Dashboard data is taking longer than expected to sync. Please try again in a moment."
+          : lastError instanceof Error
+            ? lastError.message
+            : "Unable to load dashboard data."
+      );
+    };
+
+    loadDashboard().finally(() => {
+      if (mounted) setIsDashboardLoading(false);
+    });
 
     return () => {
       mounted = false;

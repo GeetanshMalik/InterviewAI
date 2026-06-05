@@ -24,6 +24,7 @@ _dashboard_hydrate_task: asyncio.Task[None] | None = None
 
 DASHBOARD_HYDRATE_MIN_INTERVAL_SECONDS = 10.0
 DASHBOARD_HYDRATE_WAIT_SECONDS = 1.25
+DASHBOARD_OVERVIEW_HYDRATE_WAIT_SECONDS = 8.0
 DASHBOARD_HYDRATE_WARNING_INTERVAL_SECONDS = 30.0
 
 
@@ -49,18 +50,25 @@ def _finish_dashboard_hydration(task: asyncio.Task[None]) -> None:
             _dashboard_hydrate_task = None
 
 
-async def hydrate_dashboard_state(*, force: bool = False) -> None:
+async def hydrate_dashboard_state(*, force: bool = False, wait_seconds: float = DASHBOARD_HYDRATE_WAIT_SECONDS) -> bool:
     global _dashboard_hydrate_task, _last_dashboard_hydrate_warning_at
     now = time.monotonic()
     if not force and now - _last_dashboard_hydrate_at < DASHBOARD_HYDRATE_MIN_INTERVAL_SECONDS:
-        return
+        return True
 
     current_loop = asyncio.get_running_loop()
     task = _dashboard_hydrate_task
     task_is_active = task is not None and not task.done() and task.get_loop() is current_loop
 
     if task_is_active and not force:
-        return
+        try:
+            await asyncio.wait_for(asyncio.shield(task), timeout=max(0.0, float(wait_seconds)))
+            return True
+        except asyncio.TimeoutError:
+            return False
+        except Exception:
+            logger.warning("Dashboard hydration failed; returning current dashboard state.", exc_info=True)
+            return False
 
     if not task_is_active:
         task = current_loop.create_task(_run_dashboard_hydration())
@@ -68,14 +76,17 @@ async def hydrate_dashboard_state(*, force: bool = False) -> None:
         task.add_done_callback(_finish_dashboard_hydration)
 
     try:
-        await asyncio.wait_for(asyncio.shield(task), timeout=DASHBOARD_HYDRATE_WAIT_SECONDS)
+        await asyncio.wait_for(asyncio.shield(task), timeout=max(0.0, float(wait_seconds)))
+        return True
     except asyncio.TimeoutError:
         warning_now = time.monotonic()
         if warning_now - _last_dashboard_hydrate_warning_at > DASHBOARD_HYDRATE_WARNING_INTERVAL_SECONDS:
             logger.warning("Dashboard hydration is still running; returning current dashboard state.")
             _last_dashboard_hydrate_warning_at = warning_now
+        return False
     except Exception:
         logger.warning("Dashboard hydration failed; returning current dashboard state.", exc_info=True)
+        return False
 
 
 def generated_round_asset_count(interview_id: str) -> int:
@@ -382,12 +393,14 @@ async def overview(current_user: dict = Depends(get_current_user)):
     """
 
     user_id = current_user["id"]
-    await hydrate_dashboard_state()
+    hydrated = await hydrate_dashboard_state(wait_seconds=DASHBOARD_OVERVIEW_HYDRATE_WAIT_SECONDS)
     signature = dashboard_signature(user_id)
     cached = _overview_cache.get(user_id)
     now = time.time()
     if cached and cached[0] > now and cached[1] == signature:
-        return deepcopy(cached[2])
+        payload = deepcopy(cached[2])
+        payload["hydration"] = {"complete": True, "deferred": False}
+        return payload
 
     score = await score_trend(current_user)
     payload = {
@@ -399,8 +412,10 @@ async def overview(current_user: dict = Depends(get_current_user)):
         ],
         "question_distribution": await question_distribution(current_user),
         "weak_strong_subjects": await weak_strong_subjects(current_user),
+        "hydration": {"complete": hydrated, "deferred": not hydrated},
     }
-    _overview_cache[user_id] = (now + 10, signature, deepcopy(payload))
+    if hydrated:
+        _overview_cache[user_id] = (now + 10, signature, deepcopy(payload))
     return payload
 
 
