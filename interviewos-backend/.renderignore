@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.pytest_cache/
+
+# Local development
+.env
+*.local.*.log
+worker.local.err.log
+worker.local.out.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Data directories (will be created on Render)
+chroma_db/
+uploads/
+data/
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+README.md
+*.md
+
+# Testing
+tests/
+test_*.py
+*_test.py
+
+# Other
+.DS_Store
+Thumbs.db

@@ -1,0 +1,144 @@
+services:
+  # Web Service (FastAPI Backend)
+  - type: web
+    name: interviewos-backend
+    runtime: python
+    region: oregon
+    plan: starter
+    branch: main
+    rootDir: interviewos-backend
+    buildCommand: chmod +x render-build.sh start.sh && ./render-build.sh
+    startCommand: ./start.sh uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: APP_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        sync: false
+      - key: FRONTEND_URLS
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: interviewos-db
+          property: connectionString
+      - key: DATABASE_URL_SYNC
+        fromDatabase:
+          name: interviewos-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: interviewos-redis
+          property: connectionString
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: DEEPGRAM_API_KEY
+        sync: false
+      - key: LIVEKIT_URL
+        sync: false
+      - key: LIVEKIT_API_KEY
+        sync: false
+      - key: LIVEKIT_API_SECRET
+        sync: false
+      - key: POSTGRES_PERSISTENCE_ENABLED
+        value: true
+      - key: POSTGRES_PERSISTENCE_STRICT
+        value: false
+      - key: WORKFLOW_QUEUE_BACKEND
+        value: redis
+      - key: WORKFLOW_ASYNC_GENERATION
+        value: true
+      - key: CHROMA_PERSIST_DIR
+        value: /opt/render/project/src/chroma_db
+      - key: UPLOAD_DIR
+        value: /opt/render/project/src/uploads
+      - key: CODE_EXECUTION_WORKSPACE_DIR
+        value: /opt/render/project/src/data/code_execution
+      - key: DEV_STORE_PATH
+        value: /opt/render/project/src/data/development_store.json
+    healthCheckPath: /health
+    autoDeploy: true
+
+  # Worker Service (Workflow Worker)
+  - type: worker
+    name: interviewos-worker
+    runtime: python
+    region: oregon
+    plan: starter
+    branch: main
+    rootDir: interviewos-backend
+    buildCommand: chmod +x render-build.sh start.sh && ./render-build.sh
+    startCommand: ./start.sh python -m workers.workflow_worker
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: APP_ENV
+        value: production
+      - key: SECRET_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: interviewos-db
+          property: connectionString
+      - key: DATABASE_URL_SYNC
+        fromDatabase:
+          name: interviewos-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: interviewos-redis
+          property: connectionString
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: DEEPGRAM_API_KEY
+        sync: false
+      - key: LIVEKIT_URL
+        sync: false
+      - key: LIVEKIT_API_KEY
+        sync: false
+      - key: LIVEKIT_API_SECRET
+        sync: false
+      - key: POSTGRES_PERSISTENCE_ENABLED
+        value: true
+      - key: POSTGRES_PERSISTENCE_STRICT
+        value: false
+      - key: WORKFLOW_QUEUE_BACKEND
+        value: redis
+      - key: WORKFLOW_ASYNC_GENERATION
+        value: true
+      - key: CHROMA_PERSIST_DIR
+        value: /opt/render/project/src/chroma_db
+      - key: UPLOAD_DIR
+        value: /opt/render/project/src/uploads
+      - key: CODE_EXECUTION_WORKSPACE_DIR
+        value: /opt/render/project/src/data/code_execution
+      - key: DEV_STORE_PATH
+        value: /opt/render/project/src/data/development_store.json
+    autoDeploy: true
+
+databases:
+  - name: interviewos-db
+    databaseName: interviewos
+    user: interviewos
+    plan: starter
+    region: oregon
+    ipAllowList: []
+
+services:
+  - type: redis
+    name: interviewos-redis
+    plan: starter
+    region: oregon
+    ipAllowList: []
