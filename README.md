@@ -1,10 +1,10 @@
-# InterviewOS AI 🚀
+# Interview AI 🚀
 
 ## **🌐 Live Platform Link: [https://interview-ai-gold-iota.vercel.app/](https://interview-ai-gold-iota.vercel.app/)**
 
 ---
 
-**InterviewOS AI** is an advanced, enterprise-grade AI-powered technical interview and preparation platform. It simulates real-world coding and behavioral interview loops using state-of-the-art AI agents, live video/audio streams, multi-language sandbox compilation, and vector-based semantic memory.
+**Interview AI** is an advanced, enterprise-grade AI-powered technical interview and preparation platform. It simulates real-world coding and behavioral interview loops using state-of-the-art AI agents, live video/audio streams, multi-language sandbox compilation, and vector-based semantic memory.
 
 ---
 
